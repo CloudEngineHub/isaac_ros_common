@@ -1,0 +1,12 @@
+%YAML 1.2
+---
+sm_partitions:
+  - name: partition_1
+    device: 0
+    chunks: 1
+  - name: partition_2
+    device: 0
+    chunks: 2
+  - name: default
+    device: 0
+    chunks: 0
