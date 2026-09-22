@@ -1,0 +1,12 @@
+%YAML 1.2
+---
+sm_partitions:
+  - name: process_1
+    device: 0
+    chunks: 2
+  - name: process_2
+    device: 0
+    chunks: 5
+  - name: default
+    device: 0
+    chunks: 0

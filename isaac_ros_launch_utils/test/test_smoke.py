@@ -23,8 +23,8 @@ import pytest
 
 def test_smoke():
     try:
-        from isaac_ros_launch_utils import NovaRobot
-        assert NovaRobot.NOVA_CARTER.value == 1, 'Could not verify NOVA_CARTER'
+        from isaac_ros_launch_utils import get_path
+        assert callable(get_path), 'Could not verify get_path'
     except ImportError:
         # Print the module resolution path
         for path in sys.path:

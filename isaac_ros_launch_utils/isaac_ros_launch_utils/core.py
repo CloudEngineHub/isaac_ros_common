@@ -15,7 +15,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import argparse
-from enum import Enum
 import os
 import pathlib
 import platform
@@ -30,15 +29,6 @@ from . import all_types as lut
 # For backcompatibility we import with *. All new files should not use this and
 # instead use the import statement above.
 from .all_types import *  # noqa: F401, F403
-
-
-class NovaRobot(Enum):
-    """Enum defining the type of nova robot."""
-
-    NOVA_CARTER = 1
-    NOVA_DEVELOPER_KIT = 2
-    NOVA_BENCHTOP = 3
-    UNKNOWN = 4
 
 
 def _add_delay_if_set(action: lut.Action, delay: Any = None) -> lut.Action:
@@ -129,7 +119,8 @@ def get_path(package: str, path: str) -> pathlib.Path:
 def add_robot_description(
         nominals_package: Any = None,
         nominals_file: Any = None,
-        robot_calibration_path: Any = '/etc/nova/calibration/isaac_calibration.urdf',
+        *,
+        robot_calibration_path: Any,
         override_path: Any = None,
         condition: lut.Substitution = None,
         add_subsensor_frames: Any = None) -> lut.Action:
@@ -144,7 +135,7 @@ def add_robot_description(
     Args:
         nominals_package (Any): Package containing the nominals URDF file.
         nominals_file (Any): URDF nominals path, within nominals_package.
-        robot_calibration_path (Any): Path to the URDF calibration file in the robot.
+        robot_calibration_path (Any): Required path to the URDF calibration file.
         override_path (Any): Path to the URDF override file.
         condition (lut.Substitution): Condition on whether to add the robot description.
         add_subsensor_frames (Any): Add sub-sensor frames.
@@ -439,17 +430,34 @@ def static_transform(parent: str,
     if orientation_rpy is None:
         orientation_rpy = [0, 0, 0]
 
-    orientation = orientation_quaternion if orientation_quaternion is not None else orientation_rpy
-
-    translation = [str(x) for x in translation]
-    orientation = [str(x) for x in orientation]
+    # ROS 2 Lyrical's static_transform_publisher dropped positional argument support;
+    # it now requires named arguments for translation, rotation, and frame ids.
+    arguments = [
+        '--x', str(translation[0]),
+        '--y', str(translation[1]),
+        '--z', str(translation[2]),
+    ]
+    if orientation_quaternion is not None:
+        arguments += [
+            '--qx', str(orientation_quaternion[0]),
+            '--qy', str(orientation_quaternion[1]),
+            '--qz', str(orientation_quaternion[2]),
+            '--qw', str(orientation_quaternion[3]),
+        ]
+    else:
+        arguments += [
+            '--roll', str(orientation_rpy[0]),
+            '--pitch', str(orientation_rpy[1]),
+            '--yaw', str(orientation_rpy[2]),
+        ]
+    arguments += ['--frame-id', parent, '--child-frame-id', child]
 
     return lut.Node(
         package='tf2_ros',
         name='my_stat_tf_pub',
         executable='static_transform_publisher',
         output='screen',
-        arguments=translation + orientation + [parent, child],
+        arguments=arguments,
         condition=condition,
         on_exit=lut.Shutdown(),
     )
@@ -685,35 +693,6 @@ def assert_condition(assert_message: str, condition: lut.Condition) -> lut.Actio
 def log_info(msg, condition=None) -> lut.Action:
     """Create a message that is logged from ros launch."""
     return lut.LogInfo(msg=msg, condition=condition)
-
-
-def get_nova_system_info(path: str = '/etc/nova/systeminfo.yaml') -> dict:
-    """Get the system info dict created by nova init."""
-    pathlib_path = pathlib.Path(path)
-    assert pathlib_path.exists(), f'Path {pathlib_path} does not exist.'
-    yaml_content = pathlib_path.read_text()
-    return yaml.safe_load(yaml_content)
-
-
-def get_nova_robot(path: str = '/etc/nova/manager_selection') -> NovaRobot:
-    """Get the nova robot name stored in the manager_selection file created by nova init."""
-    pathlib_path = pathlib.Path(path)
-    if not pathlib_path.exists():
-        raise FileNotFoundError('[get_nova_robot]: manager selection file ' +
-                                f'{pathlib_path} does not exist.')
-    name = pathlib_path.read_text().strip('\n')
-    if name == 'nova-carter':
-        print(f'Detected NovaRobot: {NovaRobot.NOVA_CARTER.name}')
-        return NovaRobot.NOVA_CARTER
-    elif name == 'nova-devkit':
-        print(f'Detected NovaRobot: {NovaRobot.NOVA_DEVELOPER_KIT.name}')
-        return NovaRobot.NOVA_DEVELOPER_KIT
-    elif name == 'nova-benchtop':
-        print(f'Detected NovaRobot: {NovaRobot.NOVA_BENCHTOP.name}')
-        return NovaRobot.NOVA_BENCHTOP
-    else:
-        print(f'Detection of NovaRobot failed: {NovaRobot.UNKNOWN.name}')
-        return NovaRobot.UNKNOWN
 
 
 def get_isaac_ros_ws_path() -> str:

@@ -41,6 +41,6 @@ def parse_qos_string(qos_str: str):
     if profile == 'SENSOR_DATA':
         return rclpy.qos.qos_profile_sensor_data
 
-    Node('parseQoSString').get_logger().warn(
+    Node('parseQoSString').get_logger().warning(
         f'Unknown QoS profile: {profile}. Returning profile: DEFAULT')
     return rclpy.qos.QoSProfile(depth=10)
